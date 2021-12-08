@@ -1,0 +1,126 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: ngsa
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ngsa
+  namespace: ngsa
+  labels:
+    app: ngsa
+    service: ngsa
+spec:
+  ports:
+  - port: 8080
+    name: http
+    nodePort: 30080
+  type: NodePort # For external access (k3d, kind)
+  selector:
+    app: ngsa
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ngsa
+  namespace: ngsa
+  labels:
+    account: ngsa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: burst-role
+  namespace: ngsa
+rules:
+- apiGroups:
+  - autoscaling
+  resources:
+  - "*"
+  verbs:
+  - list
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: burst-rolebind
+  namespace: ngsa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: burst-role
+subjects:
+- kind: ServiceAccount
+  name: ngsa
+  namespace: ngsa
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ngsa
+  namespace: ngsa
+  labels:
+    app: ngsa
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ngsa
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: ngsa
+        version: v1
+    spec:
+      serviceAccountName: ngsa
+      containers:
+      - name: ngsa
+        image: docker.io/vyta/bursting-svc:beta
+        resources:
+          limits:
+            cpu: "500m"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080 
+        securityContext:
+          runAsUser: 1000
+# ---
+# apiVersion: networking.istio.io/v1alpha3
+# kind: Gateway
+# metadata:
+#   name: ngsa-gateway
+# spec:
+#   selector:
+#     istio: ingressgateway # use istio default controller
+#   servers:
+#   - port:
+#       number: 80
+#       name: http
+#       protocol: HTTP
+#     hosts:
+#     - "*"
+# ---
+# apiVersion: networking.istio.io/v1alpha3
+# kind: VirtualService
+# metadata:
+#   name: ngsa-vs
+# spec:
+#   hosts:
+#   - "*"
+#   gateways:
+#   - ngsa-gateway
+#   http:
+#   - match:
+#     - uri:
+#         prefix: /memory/
+#     rewrite:
+#       uri: /
+#     route:
+#     - destination:
+#         host: ngsa
+#         port:
+#           number: 8080
