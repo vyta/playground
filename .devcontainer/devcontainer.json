@@ -1,0 +1,17 @@
+{
+  "name": "Gen Purpose Dev Container",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [],
+  "customizations": { 
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+      }
+    }
+  },
+  "mounts": [
+    "source=${env:HOME}${env:USERPROFILE}/.gitconfig,target=/root/.gitconfig,type=bind",
+    "source=${env:HOME}${env:USERPROFILE}/.azure,target=/root/.azure,type=bind",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ]
+}
